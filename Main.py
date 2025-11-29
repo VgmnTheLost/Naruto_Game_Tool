@@ -9,9 +9,10 @@ from pynput import keyboard
 
 
 customConfig = {
-    "countdown_time": 13.4,  # 倒计时时间
-    "detect_interval": 100,  # 检测间隔,单位毫秒
-    "rgb_tolerance": 3,  # 色值误差,建议不超过5,不小于1
+    "countdown_time": 13.4,  # 倒计时时间,单位秒
+    "detect_interval": 50,  # 检测间隔,单位毫秒
+    "rgb_tolerance": 3,  # 色值容差
+    "distance_sq_threshold": 12288,  # 欧式距离阈值
     "close": "x",  # 关闭程序按键
     "clear_left_countdown": "z",  # 清除左侧倒计时按键
     "clear_right_countdown": "c",  # 清除右侧倒计时按键
@@ -58,48 +59,34 @@ customConfig = {
     "left_countdown_init_pos": (0, 30),  # 左方倒计时标签位置
     "right_countdown_init_pos": (250, 30),  # 右方倒计时标签位置
 }
-hashirama_detect_battle = {
-    "left": [(72, 65), (72, 75), (82, 65), (82, 75)],
-    "right": [(1737, 60), (1737, 70), (1747, 60), (1747, 70)],
-    "reborn_hashirama_max_rgb": (50, 50, 33),
-    "reborn_hashirama_min_rgb": (49, 49, 31),
-    "establish_hashirama_max_rgb": (46, 45, 28),
-    "establish_hashirama_min_rgb": (46, 45, 27),
-}
-hashirama_detect_exercise = {
-    "left": [(52, 55), (52, 65), (62, 55), (62, 65)],
-    "right": [(1697, 60), (1697, 70), (1707, 60), (1707, 70)],
-    "reborn_hashirama_max_rgb": (50, 49, 32),
-    "reborn_hashirama_min_rgb": (50, 49, 31),
-    "establish_hashirama_max_rgb": (46, 45, 28),
-    "establish_hashirama_min_rgb": (45, 44, 27),
-}
-points_color_list = [
-    (0, (32, 54, 97)),  # 暗
-    (1, (11, 201, 231)),  # 蓝
-    (1, (253, 254, 255)),  # 白
-    (2, (255, 192, 21)),  # 黄
+points_color = [
+    (0, (30, 53, 97)),  # 暗
+    (1, (55, 215, 235)),  # 浅蓝
+    (1, (87, 169, 255)),  # 深蓝，桃博
+    (1, (255, 255, 255)),  # 白，加豆特效
+    (2, (254, 153, 12)),  # 橙
+    (2, (255, 243, 50)),  # 黄
 ]
 points_num = {
-    "left": -1,
-    "right": -1,
+    "left": [],
+    "right": [],
 }
 points_show = {
     "left": {
-        0: ["◇◇◇◇", "#00000000", "#203661"],
-        1: ["◆◇◇◇", "#00000000", "#0BC9E7"],
-        2: ["◆◆◇◇", "#00000000", "#0BC9E7"],
-        3: ["◆◆◆◇", "#00000000", "#0BC9E7"],
-        4: ["◆◆◆◆", "#00000000", "#FFC015"],
+        0: ["◇◇◇◇", "#00000000", "#1e3561"],
+        1: ["◆◇◇◇", "#00000000", "#37d7eb"],
+        2: ["◆◆◇◇", "#00000000", "#37d7eb"],
+        3: ["◆◆◆◇", "#00000000", "#37d7eb"],
+        4: ["◆◆◆◆", "#00000000", "#fe990c"],
         5: ["◆◆◆◆◆◇", "#00000000", "#D8200D"],
         6: ["◆◆◆◆◆◆", "#00000000", "#D8200D"],
     },
     "right": {
-        0: ["◇◇◇◇", "#00000000", "#203661"],
-        1: ["◇◇◇◆", "#00000000", "#0BC9E7"],
-        2: ["◇◇◆◆", "#00000000", "#0BC9E7"],
-        3: ["◇◆◆◆", "#00000000", "#0BC9E7"],
-        4: ["◆◆◆◆", "#00000000", "#FFC015"],
+        0: ["◇◇◇◇", "#00000000", "#1e3561"],
+        1: ["◇◇◇◆", "#00000000", "#37d7eb"],
+        2: ["◇◇◆◆", "#00000000", "#37d7eb"],
+        3: ["◇◆◆◆", "#00000000", "#37d7eb"],
+        4: ["◆◆◆◆", "#00000000", "#fe990c"],
         5: ["◇◆◆◆◆◆", "#00000000", "#D8200D"],
         6: ["◆◆◆◆◆◆", "#00000000", "#D8200D"],
     }
@@ -122,40 +109,61 @@ points_state = {
         6: -1,
     }
 }
-points_xy_battle = {
+next_battle_detect = {
+    "pos": [(885, 707), (1003, 675), (947, 832), (1051, 745), (997, 815), (1068, 849), (960, 920)],
+    "max_rgb": (252, 233, 3),
+    "min_rgb": (252, 23, 3),
+}
+hashirama_detect_battle = {
+    "left": [(72, 65), (72, 75), (82, 65), (82, 75)],
+    "right": [(1737, 60), (1737, 70), (1747, 60), (1747, 70)],
+    "reborn_hashirama_max_rgb": (50, 50, 33),
+    "reborn_hashirama_min_rgb": (49, 49, 31),
+    "establish_hashirama_max_rgb": (46, 45, 28),
+    "establish_hashirama_min_rgb": (46, 45, 27),
+}
+hashirama_detect_exercise = {
+    "left": [(52, 55), (52, 65), (62, 55), (62, 65)],
+    "right": [(1697, 60), (1697, 70), (1707, 60), (1707, 70)],
+    "reborn_hashirama_max_rgb": (50, 49, 32),
+    "reborn_hashirama_min_rgb": (50, 49, 31),
+    "establish_hashirama_max_rgb": (46, 45, 28),
+    "establish_hashirama_min_rgb": (45, 44, 27),
+}
+points_pos_battle = {
     "left": {
-        1: (269, 161),
-        2: (297, 161),
-        3: (325, 161),
-        4: (353, 161),
-        5: (381, 161),
-        6: (409, 161),
+        1: (268, 158),
+        2: (296, 158),
+        3: (324, 158),
+        4: (352, 158),
+        5: (380, 158),
+        6: (408, 158),
     },
     "right": {
-        1: (1648, 161),
-        2: (1620, 161),
-        3: (1592, 161),
-        4: (1564, 161),
-        5: (1536, 161),
-        6: (1508, 161),
+        1: (1646, 158),
+        2: (1618, 158),
+        3: (1590, 158),
+        4: (1562, 158),
+        5: (1534, 158),
+        6: (1506, 158),
     }
 }
-points_xy_exercise = {
+points_pos_exercise = {
     "left": {
-        1: (250, 157),
-        2: (278, 157),
-        3: (306, 157),
-        4: (334, 157),
-        5: (362, 157),
-        6: (390, 157),
+        1: (250, 155),
+        2: (278, 155),
+        3: (306, 155),
+        4: (334, 155),
+        5: (362, 155),
+        6: (390, 155),
     },
     "right": {
-        1: (1610, 157),
-        2: (1582, 157),
-        3: (1554, 157),
-        4: (1526, 157),
-        5: (1508, 157),
-        6: (1470, 157),
+        1: (1610, 155),
+        2: (1582, 155),
+        3: (1554, 155),
+        4: (1526, 155),
+        5: (1508, 155),
+        6: (1470, 155),
     }
 }
 countdown_init_pos = {
@@ -164,7 +172,7 @@ countdown_init_pos = {
 }
 cur_mode = "battle"
 hashirama_detect = hashirama_detect_battle
-points_xy = points_xy_battle
+points_xy = points_pos_battle
 
 
 # 键盘监听线程类，用于在后台监听键盘事件并发送信号
@@ -281,6 +289,9 @@ class MainWindow(QMainWindow):
         elif event == "detect":
             try:
                 if self.cur_screenshot:
+                    if self.detect_special_situation("next_battle_detect", ""):
+                        self.clear_countdown("left")
+                        self.clear_countdown("right")
                     self.detect_points_color_state()
                     self.detect_points_num()
             except Exception as e:
@@ -472,7 +483,7 @@ class MainWindow(QMainWindow):
                 """)
             cur_mode = "exercise"
             hashirama_detect = hashirama_detect_exercise
-            points_xy = points_xy_exercise
+            points_xy = points_pos_exercise
         elif cur_mode == "exercise":
             base_mode_pic = QPixmap(resource_path("resource/决斗场.png"))
             mode_pic = base_mode_pic.scaled(customConfig["mode_pic_size"][0],
@@ -491,7 +502,7 @@ class MainWindow(QMainWindow):
                 """)
             cur_mode = "battle"
             hashirama_detect = hashirama_detect_battle
-            points_xy = points_xy_battle
+            points_xy = points_pos_battle
 
     def adjust_countdown(self, adjust_time):
         """
@@ -541,24 +552,31 @@ class MainWindow(QMainWindow):
             for point, (x, y) in points_xy[side].items():
                 rgb = get_pixel_rgb(screen_image, x, y)
 
-                state = find_most_similar_color(points_color_list, rgb)
+                state = find_most_similar_color(points_color, rgb)
 
                 points_state[side][point] = state
 
-    def detect_hashirama(self, side):
+    def detect_special_situation(self, situation, side):
         """
-        检测忍者是否为柱间
+        检测是否满足特殊情况
         """
-        xy_list = hashirama_detect.get(side)
+        if situation == "next_battle_detect":
+            xy_list = next_battle_detect["pos"]
+            min_rgb_list = [next_battle_detect["min_rgb"]]
+            max_rgb_list = [next_battle_detect["max_rgb"]]
+        elif situation == "hashirama_detect":
+            xy_list = hashirama_detect[side]
+            min_rgb_list = [hashirama_detect["reborn_hashirama_min_rgb"], hashirama_detect["establish_hashirama_min_rgb"]]
+            max_rgb_list = [hashirama_detect["reborn_hashirama_max_rgb"], hashirama_detect["establish_hashirama_max_rgb"]]
+        else:
+            return False
         screen_image = self.cur_screenshot.toImage()
         for x, y in xy_list:
             pixel_rgb = get_pixel_rgb(screen_image, x, y)
-            if (pixel_rgb_valid(pixel_rgb, hashirama_detect["reborn_hashirama_min_rgb"],
-                                hashirama_detect["reborn_hashirama_max_rgb"], customConfig["rgb_tolerance"]) or
-                    pixel_rgb_valid(pixel_rgb, hashirama_detect["establish_hashirama_min_rgb"],
-                                    hashirama_detect["establish_hashirama_max_rgb"], customConfig["rgb_tolerance"])):
-                return True
-        return False
+            for min_rgb, max_rgb in zip(min_rgb_list, max_rgb_list):
+                if not pixel_rgb_valid(pixel_rgb, min_rgb, max_rgb, customConfig["rgb_tolerance"]):
+                    return False
+        return True
 
     def detect_points_num(self):
         """
@@ -589,7 +607,7 @@ class MainWindow(QMainWindow):
         ]
         for side in points_state:
             states = [points_state[side][point] for point in range(1, 7)]
-            count = 0
+            count = -617
             for rule in match_rules:
                 valid_state, (start, end), exclude_range, target_count, flag = rule
                 # 检查核心点位：是否均为有效颜色
@@ -601,7 +619,7 @@ class MainWindow(QMainWindow):
                     exclude_valid = all(states[i - 1] == 0 for i in range(ex_start, ex_end + 1))
                 # 匹配成功，更新数量
                 if flag:
-                    if self.detect_hashirama(side) and core_valid and exclude_valid:
+                    if self.detect_special_situation("hashirama_detect", side) and core_valid and exclude_valid:
                         count = target_count
                         break
                 else:
@@ -609,10 +627,33 @@ class MainWindow(QMainWindow):
                         count = target_count
                         break
 
-            self.update_points_label(side, points_show[side][count])
-            if points_num[side] == count + 1:
+            self.update_points_label(side, count)
+            points_num[side].append(count)
+            if len(points_num[side]) > 20:
+                points_num[side].pop(0)
+            self.detect_points_dec(side, 5)
+
+    def detect_points_dec(self, side, num):
+        """
+        检测是否扣豆
+        """
+        if len(points_num[side]) < 2 * num:
+            return
+
+        # 1. 提取前num个和后num个数据
+        before = points_num[side][:num]
+        after = points_num[side][-num:]
+
+        # 2. 检测前num个是否全部相同
+        before_all_same = all(x == before[0] for x in before)
+        # 3. 检测后num个是否全部相同
+        after_all_same = all(x == after[0] for x in after)
+
+        # 4. 检测后值是否比前值少1
+        if before_all_same and after_all_same:
+            if (before[0] - after[0]) == 1:
                 self.detect_thread.signal.emit(side)
-            points_num[side] = count
+                points_num[side].clear()
 
 #####################################################奥义点标签-相关######################################################
     def init_points_label(self, ):
@@ -641,10 +682,13 @@ class MainWindow(QMainWindow):
         self.left_points_label.show()
         self.right_points_label.show()
 
-    def update_points_label(self, side, content):
+    def update_points_label(self, side, count):
         """
         更新奥义点标签
         """
+        if count < 0:
+            return
+        content = points_show[side][count]
         text = content[0]
         bg_color = content[1]
         text_color = content[2]
@@ -762,8 +806,8 @@ def find_most_similar_color(color_list, target_rgb):
     """
     在RGB颜色列表中找到与目标RGB颜色最相似的颜色
     """
-    min_distance_sq = float('inf')
-    most_similar_color = 0
+    min_distance_sq = customConfig["distance_sq_threshold"]
+    most_similar_color = -1
 
     tr, tg, tb = target_rgb
     for color, color_rgb in color_list:
