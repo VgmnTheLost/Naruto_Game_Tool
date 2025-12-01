@@ -849,7 +849,7 @@ def resource_path(relative_path):
     """
     使得打包后的环境和原始的开发环境，都能正确地定位到项目的资源文件
     """
-    base_path = getattr(sys, '_MEIPASS')
+    base_path = getattr(sys, '_MEIPASS', None)
     if not base_path:
         base_path = os.path.abspath(os.path.dirname(__file__))
     abs_path = os.path.join(base_path, relative_path)
