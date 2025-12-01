@@ -7,7 +7,6 @@ from PyQt6.QtGui import QFont, QPixmap, QPalette, QColor
 from PyQt6.QtWidgets import QMainWindow, QLabel, QApplication, QPushButton, QGraphicsOpacityEffect, QWidget
 from pynput import keyboard
 
-
 customConfig = {
     "countdown_time": 13.4,  # 倒计时时间,单位秒
     "detect_interval": 50,  # 检测间隔,单位毫秒
@@ -20,9 +19,13 @@ customConfig = {
 
     "main_window_pos": (810, 200),  # 主界面位置
     "main_window_size": (300, 150),  # 主界面大小
-    # 按钮 —— 不透明度,文本,几何参数,背景色,文本色,字体大小,粗细设置,圆角半径
-    "settings_button": (1.0, "设置", (50, 120, 50, 30), "#00FFFF", "#000000", "楷体", "20", "bold", "10"),
-    "close_button": (1.0, "关闭", (200, 120, 50, 30), "#FF0000", "#000000", "楷体", "20", "bold", "10"),
+    # 按钮 —— 文本,几何参数,背景色,文本边框色,字体,字体大小,粗细设置,边框大小,边框圆角半径,不透明度
+    "settings_button": ("设置", (50, 120, 50, 30), "#00FFFF", "#000000", "楷体", "20", "bold", "0", "10", 1.0),
+    "close_button": ("关闭", (200, 120, 50, 30), "#FF0000", "#000000", "楷体", "20", "bold", "0", "10", 1.0),
+    "mode_button": ("决斗场", (0, 100, 100, 30), "#FFFFFF", "#82CA6B", "楷体", "20", "bold", "2", "0", 1.0),
+    "plus_time_button": ("增加延迟", (100, 0, 100, 35), "#FFFFFF", "#FF0000", "楷体", "20", "bold", "2", "0", 1.0),
+    "dec_time_button": ("减少延迟", (100, 95, 100, 35), "#FFFFFF", "#0080FF", "楷体", "20", "bold", "2", "0", 1.0),
+    "scope_show_button": ("显示范围", (200, 100, 100, 30), "#FFFFFF", "#885093", "楷体", "20", "bold", "2", "0", 1.0),
 
     # 设置窗口相关
     "settings_ui_geometry": (810, 400, 300, 130),  # 设置窗口位置和大小
@@ -31,15 +34,9 @@ customConfig = {
     "settings_ui_border_size": "2px",  # 设置窗口边框大小
 
     "mode_label_geometry": (0, 0, 100, 100),  # 模式标签位置和大小
-    "mode_button_geometry": (0, 100, 100, 30),  # 模式按钮位置和大小
     "mode_pic_size": (100, 100),  # 模式图片大小
-
-    "plus_time_button_geometry": (100, 0, 100, 35),  # 增加倒计时按钮位置和大小
     "countdown_time_label_geometry": (100, 35, 100, 60),  # 倒计时标签位置和大小
-    "dec_time_button_geometry": (100, 95, 100, 35),  # 减少倒计时按钮位置和大小
-
     "scope_show_label_geometry": (200, 0, 100, 100),  # 范围显示标签位置和大小
-    "scope_show_button_geometry": (200, 100, 100, 30),  # 范围显示按钮位置和大小
     "scope_show_pic_size": (100, 100),  # 范围显示图片大小
 
     # 奥义点标签设置
@@ -124,6 +121,7 @@ end_battle_detect = {
     "max_rgb": (253, 203, 5),
     "min_rgb": (250, 200, 2),
 }
+# todo 金水检测
 hashirama_detect_battle = {
     "left": [(72, 65), (72, 75), (82, 65), (82, 75)],
     "right": [(1737, 60), (1737, 70), (1747, 60), (1747, 70)],
@@ -188,7 +186,7 @@ points_xy = points_pos_battle
 
 # 键盘监听线程类，用于在后台监听键盘事件并发送信号
 class KeyListenerThread(QThread):
-    key_pressed = pyqtSignal(str)
+    key_pressed: pyqtSignal = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -200,25 +198,27 @@ class KeyListenerThread(QThread):
             if not self.running:
                 return
             try:
-                key_name = key.char
+                key_name = key.char if key.char is not None else str(key)
             except AttributeError:
                 key_name = str(key)
             self.key_pressed.emit(key_name)
 
-        with keyboard.Listener(on_press=on_press) as self.listener:
-            while self.running and self.listener.is_alive():
-                self.listener.join(timeout=0.1)
+        self.listener = keyboard.Listener(on_press=on_press)
+        self.listener.start()
+        while self.running and self.listener.is_alive():
+            self.msleep(100)
+        if self.listener.is_alive():
+            self.listener.stop()
+        self.listener.join()
 
     def stop(self):
         self.running = False
-        if self.listener and self.listener.is_alive():
-            self.listener.stop()
-        self.wait()
+        self.wait(1000)
 
 
 # 周期性屏幕截图和检测线程类
 class ScreenDetectThread(QThread):
-    signal = pyqtSignal(str)
+    signal: pyqtSignal = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -235,7 +235,7 @@ class ScreenDetectThread(QThread):
 
     def stop(self):
         self.running = False
-        self.wait()
+        self.wait(1000)
 
 
 # 主屏幕
@@ -251,14 +251,27 @@ class MainWindow(QMainWindow):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)  # 将窗口的背景设置为完全透明
 
-        self.cur_screenshot = None  # 当前主屏幕截图
-        self.drag_pos = None  # 拖拽位置
-        self.settings_ui = None  # 设置界面
+        # 定义内部变量
+        self.cur_screenshot = None
+        self.drag_pos = None
+        self.settings_ui = None
+        self.mode_switch_label = None
+        self.mode_switch_button = None
+        self.countdown_time_label = None
+        self.plus_time_button = None
+        self.dec_time_button = None
+        self.scope_show_button = None
+        self.scope_show_label = None
+        self.pic_ui = None
+        self.pic_label = None
+        self.left_points_label = None
+        self.right_points_label = None
+
         self.left_countdowns = []  # 存储左侧倒计时
         self.right_countdowns = []  # 存储右侧倒计时
 
-        self.settings_button = self.create_button(customConfig["settings_button"], self.show_settings_ui)  # 创建设置按钮
-        self.close_button = self.create_button(customConfig["close_button"], close)  # 创建关闭按钮
+        self.settings_button = self.create_button(None, customConfig["settings_button"], self.show_settings_ui)  # 创建设置按钮
+        self.close_button = self.create_button(None, customConfig["close_button"], close)  # 创建关闭按钮
 
         self.init_points_label()  # 初始化双方奥义点标签
 
@@ -354,29 +367,22 @@ class MainWindow(QMainWindow):
         self.detect_thread.stop()
         super().closeEvent(event)
 
-    def create_button(self, button_config, click_callback):
+    def create_button(self, parent, button_config, click_callback):
         """
         创建按钮
         """
-        opacity, text, geometry, bg_color, text_color, font_family, font_size, font_weight, border_radius = button_config
+        text, geometry, bg_color, color, font_family, font_size, font_weight, border_size, border_radius, opacity = button_config
 
-        button = QPushButton(text, self)
+        button: QPushButton = QPushButton(text, parent if parent is not None else self)
         button.setGeometry(*geometry)
         button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {bg_color};
-                color: {text_color};
-                font-family: "{font_family}";
-                font-size: {font_size}px;
-                font-weight: {font_weight};
-                border-radius: {border_radius}px;
-            }}
-            QPushButton:hover {{
-                opacity: 0.9;  # hover时轻微变暗，提升交互体验
-            }}
-            QPushButton:pressed {{
-                opacity: 0.8;  # 按下时加深，模拟按压反馈
-            }}
+            background-color: {bg_color};
+            color: {color};
+            font-family: "{font_family}";
+            font-size: {font_size}px;
+            font-weight: {font_weight};
+            border: {border_size} solid {color};
+            border-radius: {border_radius}px;
         """)
         opacity_effect = QGraphicsOpacityEffect(button)
         opacity_effect.setOpacity(opacity)
@@ -407,19 +413,8 @@ class MainWindow(QMainWindow):
                                             Qt.AspectRatioMode.KeepAspectRatio,  # 宽高比保持策略
                                             Qt.TransformationMode.SmoothTransformation)  # 平滑缩放算法
             self.mode_switch_label.setPixmap(mode_pic)
-
             # 模式切换按钮
-            self.mode_switch_button = QPushButton("决斗场", self.settings_ui)
-            self.mode_switch_button.setGeometry(*customConfig["mode_button_geometry"])
-            self.mode_switch_button.setStyleSheet(f"""
-                background-color: #FFFFFF;
-                color: #82CA6B;
-                font-family: {customConfig['settings_ui_font_family']};
-                font-size: {customConfig['settings_ui_font_size']};
-                font-weight: bold;
-                border: {customConfig['settings_ui_border_size']} solid #82CA6B;
-                """)
-            self.mode_switch_button.clicked.connect(self.switch_mode)
+            self.mode_switch_button = self.create_button(self.settings_ui, customConfig["mode_button"], self.switch_mode)
 
             # 倒计时时间标签
             self.countdown_time_label = QLabel(f"{customConfig['countdown_time']} 秒", self.settings_ui)
@@ -434,43 +429,12 @@ class MainWindow(QMainWindow):
                 border: {customConfig['settings_ui_border_size']} solid #00FF00;
                 """)
             # 增加倒计时时间按钮
-            self.plus_time_button = QPushButton("增加延迟", self.settings_ui)
-            self.plus_time_button.setGeometry(*customConfig["plus_time_button_geometry"])
-            self.plus_time_button.setStyleSheet(f"""
-                background-color: #FFFFFF;
-                color: #FF0000;
-                font-family: {customConfig['settings_ui_font_family']};
-                font-size: {customConfig['settings_ui_font_size']};
-                font-weight: bold;
-                border: {customConfig['settings_ui_border_size']} solid #FF0000;
-                """)
-            self.plus_time_button.clicked.connect(lambda: self.adjust_countdown(0.1))
+            self.plus_time_button = self.create_button(self.settings_ui, customConfig["plus_time_button"],
+                                                       lambda: self.adjust_countdown(0.1))
             # 减少倒计时时间按钮
-            self.dec_time_button = QPushButton("减少延迟", self.settings_ui)
-            self.dec_time_button.setGeometry(*customConfig["dec_time_button_geometry"])
-            self.dec_time_button.setStyleSheet(f"""
-                background-color: #FFFFFF;
-                color: #0080FF;
-                font-family: {customConfig['settings_ui_font_family']};
-                font-size: {customConfig['settings_ui_font_size']};
-                font-weight: bold;
-                border: {customConfig['settings_ui_border_size']} solid #0080FF;
-                """)
-            self.dec_time_button.clicked.connect(lambda: self.adjust_countdown(-0.1))
+            self.dec_time_button = self.create_button(self.settings_ui, customConfig["dec_time_button"],
+                                                      lambda: self.adjust_countdown(-0.1))
 
-            # 范围显示按钮
-            self.scope_show_button = QPushButton("显示范围", self.settings_ui)
-            self.scope_show_button.setGeometry(*customConfig["scope_show_button_geometry"])
-            self.scope_show_button.setStyleSheet(f"""
-                background-color: #FFFFFF;
-                color: #885093;
-                font-family: {customConfig['settings_ui_font_family']};
-                font-size: {customConfig['settings_ui_font_size']};
-                font-weight: bold;
-                border: {customConfig['settings_ui_border_size']} solid #885093;
-                """)
-            self.scope_show_button.clicked.connect(lambda: self.show_pic(
-                QPixmap(resource_path("resource/X轴范围显示.png"))))
             # 范围显示标签
             self.scope_show_label = QLabel(self.settings_ui)
             self.scope_show_label.setGeometry(*customConfig["scope_show_label_geometry"])
@@ -480,6 +444,9 @@ class MainWindow(QMainWindow):
                                                         Qt.AspectRatioMode.KeepAspectRatio,
                                                         Qt.TransformationMode.SmoothTransformation)
             self.scope_show_label.setPixmap(scope_show_pic)
+            # 范围显示按钮
+            self.scope_show_button = self.create_button(self.settings_ui, customConfig["scope_show_button"],
+                                                        lambda: self.show_pic(QPixmap(resource_path("resource/X轴范围显示.png"))))
 
         # 切换窗口的显示状态
         if self.settings_ui.isVisible():
@@ -609,8 +576,10 @@ class MainWindow(QMainWindow):
             max_rgb_list = [end_battle_detect["max_rgb"]]
         elif situation == "hashirama_detect":
             xy_list = hashirama_detect[side]
-            min_rgb_list = [hashirama_detect["reborn_hashirama_min_rgb"], hashirama_detect["establish_hashirama_min_rgb"]]
-            max_rgb_list = [hashirama_detect["reborn_hashirama_max_rgb"], hashirama_detect["establish_hashirama_max_rgb"]]
+            min_rgb_list = [hashirama_detect["reborn_hashirama_min_rgb"],
+                            hashirama_detect["establish_hashirama_min_rgb"]]
+            max_rgb_list = [hashirama_detect["reborn_hashirama_max_rgb"],
+                            hashirama_detect["establish_hashirama_max_rgb"]]
         else:
             return False
         screen_image = self.cur_screenshot.toImage()
@@ -788,7 +757,7 @@ class MainWindow(QMainWindow):
         countdown_label.setText(f"{remaining_time:.1f}")
         countdown_label.show()
 
-        timer = QTimer(self)
+        timer: QTimer = QTimer(self)
         timer.setInterval(100)
 
         def update_countdown():
@@ -880,12 +849,11 @@ def resource_path(relative_path):
     """
     使得打包后的环境和原始的开发环境，都能正确地定位到项目的资源文件
     """
-    if hasattr(sys, '_MEIPASS'):
-        base_path = sys._MEIPASS
-    else:
-        base_path = os.path.abspath('')
-
-    return os.path.join(base_path, relative_path)
+    base_path = getattr(sys, '_MEIPASS')
+    if not base_path:
+        base_path = os.path.abspath(os.path.dirname(__file__))
+    abs_path = os.path.join(base_path, relative_path)
+    return os.path.normpath(abs_path)
 
 
 def close():

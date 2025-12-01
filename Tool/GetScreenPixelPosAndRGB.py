@@ -1,7 +1,7 @@
 import sys
 
 from PyQt6.QtGui import QFont
-from PyQt6.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QApplication, QLabel, QWidget
 from PyQt6.QtCore import Qt, QTimer
 
 # 获取主屏幕上点击位置像素点的坐标和RGB值
