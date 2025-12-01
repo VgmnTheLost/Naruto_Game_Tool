@@ -107,9 +107,9 @@ points_state = {
     }
 }
 start_battle_detect = {
-    "pos": [(293, 124), (349, 124), (1621, 124), (1565, 124)],
+    "pos": [(433, 124), (461, 124), (1481, 124), (1453, 124)],
     "max_rgb": (253, 87, 25),
-    "min_rgb": (250, 78, 19),
+    "min_rgb": (130, 40, 10),
 }
 next_round_detect = {
     "pos": [(885, 707), (1003, 675), (947, 832), (1051, 745), (997, 815), (1068, 849), (960, 920)],
@@ -478,10 +478,6 @@ class MainWindow(QMainWindow):
             cur_mode = "exercise"
             hashirama_detect = hashirama_detect_exercise
             points_xy = points_pos_exercise
-            self.clear_countdown("left")
-            self.clear_countdown("right")
-            self.update_points_label("left", 0)
-            self.update_points_label("right", 0)
         elif cur_mode == "exercise":
             base_mode_pic = QPixmap(resource_path("resource/决斗场.png"))
             mode_pic = base_mode_pic.scaled(customConfig["mode_pic_size"][0],
@@ -501,10 +497,10 @@ class MainWindow(QMainWindow):
             cur_mode = "battle"
             hashirama_detect = hashirama_detect_battle
             points_xy = points_pos_battle
-            self.clear_countdown("left")
-            self.clear_countdown("right")
-            self.update_points_label("left", 0)
-            self.update_points_label("right", 0)
+        self.clear_countdown("left")
+        self.clear_countdown("right")
+        self.update_points_label("left", 0)
+        self.update_points_label("right", 0)
 
     def adjust_countdown(self, adjust_time):
         """
